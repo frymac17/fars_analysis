@@ -26,7 +26,7 @@ The variables we would want to use to get the stratified variables (grouping by)
    
    drug_res is broken down by type 100-295 indicates narcotic, 300-395 depressant, 400-495 is a stimulant, 500-595 is a hallucinogen, 600-695 cannabinoid, and 800- 895 is anabolic steroids, 900-995 is an inhalant.  999 indicates unknown or not reported a score of 1 classified no drugs or negative testing. 0 is not tested at all.
    
-   Almost all variables had some slight change in variable values over the many years we are collecting and observing. So in our code, it is important to note both values for indicating missing data. 
+   Almost all variables had some slight change in variable values over the many years we are collecting and observing. So in our code, it is important to note both values for indicating missing data.  
 
 
 
