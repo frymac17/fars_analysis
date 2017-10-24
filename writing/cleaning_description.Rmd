@@ -2,14 +2,16 @@
 title: "Cleaning_Description"
 author: "Mackenzie Fry"
 date: "October 25, 2017"
-output: word_document
+output:
+  word_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, messsage = FALSE, warning = FALSE, eval= FALSE)
 ```
   
-First we want to load all the librarys we will want to use
+
 ```{r}
 library(dplyr)
 library(tidyr)
@@ -17,27 +19,32 @@ library(readr)
 library(maps)
 library(purrr)
 library(knitr)
+```
 
+
+
+```{r}
 clean_yearly_person_file <- function(year) {
-  # 1. Read data in.
-  person_file <- paste0("data-raw/yearly_person_data/person_", year, ".csv")
+  #1 Read data in
+  person_file <- paste0("../data-raw/yearly_person_data/person_", year, ".csv")
   df <- read_csv(person_file)
   
-  
-  # 2. Convert all column names to lowercase.
+  #2 Convert all column names to lowercase
   colnames(df) <- tolower(colnames(df))
+  
   df <- df %>%
-    # 3. Limit variables.
+  #3 Limit Variables
     select(st_case, veh_no, per_no, state, per_typ, lag_hrs, lag_mins,
                   inj_sev, age, alc_res, contains("drugres"), sex) %>%
-    # 4. Limit to relevant `per_typ` and `inj_sev` values, then remove those variables.
+  #4 Limit to relevant 'per_type` and `inj_sev` values, then remove those variables
+     
     filter(per_typ == 1 & inj_sev == 4) %>%
     select(-per_typ, -inj_sev) %>%
-    # 5. Create a `unique_id`. Note: to be unique, `year` needs to be pasted on.
+  #5 Create a `unique_id`
     unite(unique_id, st_case, veh_no, per_no) %>%
     mutate(year = year,
                   unique_id = paste(unique_id, year, sep = "_")) %>%
-    # 6. Limit to study states and then remove the `state` variable.
+  #6 Limit to study states and then remove the `state` variable
     filter(state %in% c(6,
                                15,
                                17,
@@ -45,18 +52,18 @@ clean_yearly_person_file <- function(year) {
                                44,
                                54)) %>%
     select(-state) %>%
-    # 7. Convert `sex` to a factor with levels "Male" and "Female".
+   #7 Convert `sex` to a factor with levels "Male" and "Female"
     mutate(sex = ifelse(sex == 9, NA, sex),
                   sex = factor(sex, levels = c(1, 2),
                                labels = c("Male", "Female"))) %>%
-    # 8. Use measured alcohol blood level to create `Alcohol` (logical for whether
-    # alcohol was present). Then remove the `alc_res` variable.
-   mutate(alc_res = ifelse(alc_res > 94, NA, alc_res / 10),
+   #8 Use measured alcohol blood level to create `Alcohol` (logical for whether
+    #alcohol was present). Then remove `alc_res` variable
+    mutate(alc_res = ifelse(alc_res > 94, NA, alc_res / 10),
                   Alcohol = alc_res >= 0.01) %>%
    select(-alc_res) %>%
-    # 9. Specify missing values for the lag minutes.
+   #9 Specify missing values for the lag minutes
    mutate(lag_mins = ifelse(lag_mins == 99, NA, lag_mins))
-  # 10. Save lag hours coded as missing as `NA`.
+   #10 Save lag hours coded as missing as `NA`.
   if(year <= 2008){
     df <- df %>%
     mutate(lag_hrs = ifelse(lag_hrs %in% c(99, 999), NA, lag_hrs))
@@ -65,11 +72,11 @@ clean_yearly_person_file <- function(year) {
     mutate(lag_hrs = ifelse(lag_hrs == 999, NA, lag_hrs))
   }
   
-  # 11. Limit to deaths within an hour of the accident then remove those variables.
+   #11 Limit to deaths within an hour of the accident then remove those variables
   df <- df %>%
     filter((lag_hrs < 1) | (lag_hrs == 1 & lag_mins == 0)) %>%
     select(-lag_hrs, -lag_mins)
-  # 12. Save age values coded as missing as `NA`.
+   #12 Save age values coded as missing as `NA`
   if(year <= 2008){
     df <- df %>%
      mutate(age = ifelse(age == 99, NA, age))
@@ -77,7 +84,7 @@ clean_yearly_person_file <- function(year) {
     df <- df %>%
      mutate(age = ifelse(age %in% c(998, 999), NA, age))
   }
-  # 13. Use age to create age categories and then remove `age` variable.
+  #13. Use age to create age categories and then remove `age` variable.
   df <- df %>%
     mutate(agecat = cut(age, breaks = c(0, 25, 45, 65, 1000),
                                labels = c("< 25 years",
@@ -86,9 +93,9 @@ clean_yearly_person_file <- function(year) {
                                           "65 years +"),
                                include.lowest = TRUE, right = FALSE)) %>%
     select(-age)
-  # 14. Gather all the columns with different drug listings (i.e., `drugres1`,
-  # `drugres2`, `drugres3`). Convert from the numeric code listings to
-  # drug categories.
+ #14 Gather all the columns with different drug listings (i.e., `drugres`),
+  #`drugres2, `drugres3`) Convert from the numeric code listings to
+  #drug categories
   gathered_df <- df %>%
     gather(drug_number, drug_type_raw, contains("drugres")) %>%
     mutate(drug_type = ifelse(drug_type_raw %in% 100:295,
@@ -105,10 +112,11 @@ clean_yearly_person_file <- function(year) {
                                      "None", drug_type),
                   drug_type = factor(drug_type)) %>%
     select(-drug_type_raw, -drug_number) %>%
-    # 15. Filter out any observations where both alcohol and drug data is missing.
+   #15 Filter out any observations where both alcohol and drug data is missing
     filter(!(is.na(Alcohol) & is.na(drug_type)))
-  # 16. Create a subset with only individuals with at least one non-missing
-  # listing for drugs. (Write a sentence or two for each step in this pipe chain.)
+ 
+   #16 Create a sbset with only individuals with at least one non-missing 
+  #listing for drugs.
   non_missing_drugs <- gathered_df %>%
     filter(!is.na(drug_type)) %>%
     group_by(unique_id, drug_type) %>%
@@ -117,8 +125,7 @@ clean_yearly_person_file <- function(year) {
     mutate(row_num = 1:n()) %>%
     spread(drug_type, has_drug, fill = FALSE) %>%
     select(-row_num)
-  # 17. Join this back into the full dataset. (Write a sentence or two for each
-  # step in this pipe chain.)
+  ##17 Join back into the full dataset. 
   df <- df %>%
     select(-contains("drugres")) %>%
     full_join(non_missing_drugs, by = "unique_id") %>%
@@ -134,40 +141,56 @@ clean_yearly_person_file <- function(year) {
 
 
 ```{r}
-#clean_fars <- map_df(1999:2010, clean_yearly_person_file)
-save(clean_fars, file = "~/r_prog/data/fars_analysis/data/clean_fars.RData")
-```  
-
-```{r}
-load("~/r_prog/data/fars_analysis/data/clean_fars.RData")
+##18 Iterate the clean_yearly_person_file function across study years to 
+#create and save a single data set called clean_fars
+clean_fars <-map_df(1999:2010, clean_yearly_person_file)
+save(clean_fars, file = "../data/clean_fars.RData")
 ```
 
 ```{r}
-dim(clean_fars)
-
-length(unique(clean_fars$unique_id))
-
-summary(clean_fars)
+load("../data/clean_fars.RData")
 ```
 
-```{r}
-clean_fars %>%
-  mutate(year_cat = cut(year, breaks = c(1999, 2002, 2006, 2010),
-                        labels = c("1999-2002", "2003-2006",
-                                   "2007-2010"),
-                        include.lowest = TRUE, right = TRUE)) %>%
-  filter(!is.na(sex)) %>%
-  group_by(drug_type, sex, year_cat) %>%
-  summarize(n_non_missing = sum(!is.na(positive_for_drug)),
-            positive_test = sum(positive_for_drug, na.rm = TRUE),
-            perc_positive = round(100 * positive_test / n_non_missing, 1)) %>%
-  select(drug_type, sex, year_cat, perc_positive) %>%
-  unite(sex_year_cat, sex, year_cat) %>%
-  spread(sex_year_cat, perc_positive) %>%
-  kable(col.names = c("Drug type", "F 1999-2002",
-                             "F 2003-2006", "F 2007-2010",
-                             "M 1999-2002", "M 2003-2006",
-                             "M 2007-2010"))
 
-````
 
+
+## Description of Process 1-18        
+1. In this first step, we are reading in the raw data from the FARS data. Right now there are 11 different files representating data from years 1999 to 2010. When we create `person_file` we are telling R to `paste0` a file location from our current working directory. We are working in our project fars_analysis, which is automatcially the working directory.  therefore, all we have to say is `"data-raw"` the folder the data is in. and `person_` indicates the beginning part of the name of all the files, `year` is referring to the specific year of the file. and then the final part is `.csv` which is the type of file it is saved as. We can now, create a dataframe, called df for now, that reads in using `readr` library the csv from the `person_file`. We do this because now we can read in all the files we need,from this code line rather than reading each data set in separately.   
+   
+2. In the second step, we are calling `colnames(df)` to refer to the column names of the `df` dataframe we just created in step 1. In this step we are telling R, that we want to make all the column names have lower case letters. We want to this so that it is easier to work with the data knowing there aren't any random lettings that might be capatilized. This step makes it less likely for us to make errors later.  
+
+3.  As of now, `df` has every variable that the `persons` data contains. For the purpose of our fars analysis, we want to clean up our data, and make it more tidy for our specific use. So in step 3, we are limiting or selecting which varaibles we are going to want.  in this case we want the following variables: `st_case` which is the state the case happened in, `veh_no` indcates the vehicle id, `per_no` is the id representing the observation, `state` the state of the person in fips code format, `per_type`is the type of person they were in the accident (pedestrian, driver, passenger etc.,), `lag_hrs`, `lag_mins`, both lag hours and lag minutes indicate how long after the incident the person died.`inj_sev`  indicates the severity of the injury which could be no injuries to fatal, `age` represents the cases age `alc_res` indicates the result of the blood alcohol levels, and we say contains(`drug_res`) because we want all the columns that have some varaition of drug_res in them (ex: `drug_res1`, `drug_res2`) classifies whether or not a person was using drugs and then what kind, and `sex` male or female.  We are narrowing down our variables because we know from the Brandy and Li study these are the main variables they were focusing on, and any other varaibles are just making our tables untidy and hard more complicated.  
+
+4. We want to narrow down variables `per_type` and `inj_serv` to only the values we want to see.  In the Brandy and Li study, the researchers wanted to study accidents where the driver had a fatality.  To narrwo our data down, from looking at the FARS documentation, we know that `per_type` can be range from pedestrians, to passengers, to the driver. We only want to see values of the drivers, so we are going to use the `filter` function from `dplyr`.  We want `per_type == 1`, but we also want to narrow down `inj_serv` as well. For severity of injuries we want to see only fatalities.  Here we want, `inj_serv == 4` which is the value for fatalites.  To write the code, we want to find accidents where the driver had a fatality. This is why we use the `&` sign in the filter statement because we not only want driver, but also a fatality of the driver. Now that we have filtered to this specific argument. We want to work on other varaibles, so we can select everything except for those two values so we know what variables we still need to work on.  
+
+5. Our next step is to create a id that makes sense for our data set.  Right now, we have three id variables measuring the same observations, which is untidy.  To tidy our data, we want to use the `unite`argument from the `tidyr` library to combine multiple columns into one. we want to unite `st_case`, `veh_no`, and `per_no` into a column called `unique_id` We also want to include the specific year as well. To do this we want to mutate `year` to be equal to `year`, and then create a new variable overwriting the old unique_id which is now adding year. We are saying for this `unique_id` variable we want to include what we had for unique_id and include year with it, but to seperate (sep) by a`"-"` symbol.
+We did this so we could have a unqiue_id variable that was specific to the information we would want as an observation indicator.  
+
+6. In the Brandy and Li study, the reserachers were only interested in six states specifically because they had the best data on tracking alcohol and drug testing from accidents.  The states were California, Hawaii, Illinois, New Hampshire, Rhode Island, and West Virginia. So, we now want to limit what states we include in our data to just those states.  To do this, we use the `filter` function from `dplyr`. for this statement we can use the `%in%` to indcate we want to choose from the `state` column those that are in 6, 15, 17, 33, 44, and 54. These are the fips codes for those states. Then like we did in step 4, we want to remove the state varible. We do so by selecting everything but state.  
+
+7. Next, we want to convert our sex variable from numeric value to a factor value. Right now 1 indcates a male and 2 indciates a female, and 9 indcates missing values. First, we give the missing values which were represented by a 9, a factor value of `NA`.  We use the `mutate` function from `dplyr` to say if our `sex == 9`, it will be NA, for sex.  Now, we can deal with our binary female and male numeric values, for this we are still using mutate to change again the sex variable. We are saying we want to factor sex at the levels of 1, and 2 which are the current numeric levels sex can be, and then we want to label these labels "male" if the level is 1, and "female", if the level is 2. We want to change these values to factors because it is easier to look at and understand, but it is also more tidy for what we want to do later on by grouping by sex.  
+
+
+8. In this step we are working with the `alc_res` variable. We want to manipulate this column so that we can see which results were positive. This is telling us if alcohol was present or not. to do this, we want make a varaible with a  logical statement that says `TRUE` if alcohol was present, and `FALSE` if alcohol was not present.  To do this,  we are going to use the `mutate` function from `dplyr` again, we want to mutate `alc_res`, to say if it `alc_res` is less more than 94, than it is missing or `NA`, `alc_res/10`. Then we will mutate again, and create our logical statement, `Alcohol` is if `alc_res` is greater than or equal to .01. We are doing this because if it is greater than .01 than it alcohol is present and the result wll be `TRUE`.  Next, as we've done in past steps we delete the `alc_res` variable because we no longer need it.  
+
+9. Next we are going to idenitfy missing values for the `lag_minutes` variable.
+If a value was missing for `lag_minutes` it was givena  value of 99. So will use the `mutate` function from `dplyr` library, to say if `lag_mins`  is == 99, it will be `NA` for `lag_mins`.
+
+10. Now, we want to save `lag_hours` that have `NA` values.  Because the coding changed after 2008, we need to specify that there are two values 99, 999 that both indicate missing values as NA. This is why we used the `mutate` function from the `dplyr` library to say if the value for `lag_hrs` is 99 or 999 then we say it is NA. By using mutate agaian, we can say that `lag_hrs  is NA if it is exactly equal to 999.
+
+11. Now that we have taken care of the missing values, we want to specify the lag horus that we are focused on which is within the first hour.  We use the `filter` function from the `dplry` library to say that  from the `df` dataframe we have been working on, we want to filter to `lag_hours` that are less than one, or is symbolized by the `|`, `lag_hours that have 1 hour` AND the `lag_mins` is exactly equal to 0. We are typing this, beause we want to find observations that are less than an hour, or exactly equal to an hour. Then as we have done before, we can say we want to get rid of both `lag_hours` and `lag_mins` because we no longer need to make edits to them.
+
+12. Next we are focusing on the `age` variable. First, we want to save the missing values for `age`. Because the code is different after 2008, we need to specify what missing values indcate for the different years.  So, here we will use the `mutate` function form the `dplyr` library, to say if the year is before 2008, mutate age to be missing if the value is 99, if it is not then we say to mutate age if the value is either 998 or 999 to be missing. 
+
+13. Now that we have delt with the missing values, we need to create and replicate the age categories that the Brandy and Li study used. This age groups were broken down by less than 25, 25-44, 45-64, and 65 and older. Again, we will be using the `mutate` function from the `dplyr` library to make these break points and different categories. In this code we are using `agecat` to print the ages by the cuts we create.  Here were saying for `age`, create breaks at 0, 25, 45, 65, 1000). We are including 1000 to incorporate our NA values. so our labels then are `less than 25`, `25-44`, `45-64`, and `65+`.  With our statements at the end, we are saying we want to include the lowest as true, and then right is saying not to include the 1000 (as they are missing).  Then as we've done in the other steps we are going to select all variables except age.   
+
+14. Next we are going to take all the columns that relate to drugs including those that have `drug_res` or informat in them and gather them, `drug_number`, and `drug_type_raw` into one column to ultimately create a `drug_type` column. First, we are creating a new dataframe from our `df` called `gathered_df`. We need to do this to get variabe that are similar to those in the Brady and Li paper.
+First, we used the `gather` function from the `tidyr` library to gather all those columns into one.  Once we gathered the columns, we can then use our `mutate` function from the `dplyr` library to create the `drug_type` column and different levels of new variable. In this part we looked to the FARS document to figure out what the different types of drugs were and there code. We also needed to see how Brady and Li coded their drugs because they combined a few drug types into a new catetgroy `other`. So if the `raw_drug_type` value ranged from 100 to 295 it was classified as `Narcotics`, 300 to 395 they were classified as `Depressants`, 400 to 495 the drug type was `Stimulant`, 600-695 was identified as `Cannabinoid`, 500 to 595, and 700 to 996 were classified as `other`, and finally, the last category for the `drug_type` was if drug_type_raw was exactly 1, then it was identified as `none`. Now that we created this new column of drug_type, we can then select all variables or columns except for `drug_type_raw`, and `drug_number` as they are no longer needed and replaced with `drug_type`.   
+
+15. Now that we have defined our variables, we want to remove missing values from the columns of `drug_type` and `Alcohol`.  This step is simple, we are going to use the `filter` function from  the `dplyr` library and we want to use the `"!"` symbol which indicates `"is not"` and then we see `is.na` which means missing values.  Our statement is saying we want to filter to values that are not missing for `Alcohol` and `drug_type`. We are removing missing values because in the study from Brady and Li they were assessing the relevance of alcohol and drug involvement in fatal accidents and if we don't have information on either of them then they won't be useful in our analysis.  
+
+16. In the next step, we are going to create a subset with only individuals that have a least one non-missing listing for drugs. Here, we are trying to find individuals who tested positive or were under the influence of at least one drug type. We created a new dataframe and called it `non-missing_drugs` we are pulling the data from our `gathered_df` from step 15. We are going to use the `filter` function from the `dplyr` library to filter our `gathered_df` to only `drug_type` with out missing values. After that, we can then group_by the `unique_id` we created in step 5, and also `drug_type`. Then we can summarize with a logical statement of `has_drug` = `TRUE`. We are doing this to find out how many individuals `has_drug` or took a drug. Next we are going to ungroup, and then mutate a new column called `row_num` which is equal to 1 to "n" or the last number. Finally, we are going to use the `spread` function and spread  `drug_type`, `has_drug` and then we are not going to fill. becaues we say `fill= FALSE`. Finally we can remove that `row_num` column by selecting all varibles except for `row_num`.  
+
+17.  Now, we can join the `non_missing_drugs` dataframe back to the `df` dataframe we had worked on in the beginning.  First, we want to `select` using the `dplyr` function, all varaibles that do no contain `drugres` in their title. Next again using `dplry`, we can use the `full_join` which will return all values that are the same in both data frames and leave an NA value for the values that are not in both.  Then we selected everything except for the `None` variable. Then using the `tidyr` function we `gathered`  the following variables into one coloumn `drug_type`, `positive_for_drug`, `Alcohol`, `Cannabanoid`, `Depressant`, `Narcotic`, `Other`, and `Stimulant`. Using the `dplyr` library we can `mutate` the variable  `drug_type` to be a factor.  and then lastly, we can use the `unique` function to get only unique values. By using the `return(df)`, we are saying we want to `df` with all the changes. 
+
+18. The last step, Finally we want to use the `clean_yearly_file` function across all of the data sets we have and save to one single data set. To do so , we create `clean_fars`,  We use to the map_df to apply a function we created to different data sets. Here we say, we want to use (`1999:2010`), and use our function `clean_yearly_person_file` which we created back in the beginning in step 1 to step 17. This means for each data set we want to do steps 1:17 which we created as a function `clean_yearly_file`.   After we run this code, we then use the `save` function and we save it as `clean_fars` into our data folder of our `fars_analysis` project which is our current working directory which is why we can use relative pathways such as "`data/clean_fars.RData`"

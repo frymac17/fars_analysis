@@ -15,7 +15,6 @@ length(unique(clean_fars$unique_id))
 
 summary(clean_fars)
 
-
 clean_fars %>%
   mutate(year_cat = cut(year, breaks = c(1999, 2002, 2006, 2010),
                         labels = c("1999-2002", "2003-2006",
