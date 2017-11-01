@@ -1,0 +1,151 @@
+---
+title: "Reproduced analysis of FARS data"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###Results   
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(readr)
+library(maps)
+library(purrr)
+library(knitr)
+library(ggplot2)
+library(scales)
+```
+
+**Percentages of drivers testing positive by drug type, sex, and year group.**
+```{r}
+load("../data/clean_fars.RData")
+
+clean_fars %>%
+  mutate(year_cat = cut(year, breaks = c(1999, 2002, 2006, 2010),
+                        labels = c("1999-2002", "2003-2006",
+                                   "2007-2010"),
+                        include.lowest = TRUE, right = TRUE)) %>%
+  filter(!is.na(sex)) %>%
+  group_by(drug_type, sex, year_cat) %>%
+  summarize(n_non_missing = sum(!is.na(positive_for_drug)),
+            positive_test = sum(positive_for_drug, na.rm = TRUE),
+            perc_positive = round(100 * positive_test / n_non_missing, 1)) %>%
+  select(drug_type, sex, year_cat, perc_positive) %>%
+  unite(sex_year_cat, sex, year_cat) %>%
+  spread(sex_year_cat, perc_positive) %>%
+  kable(col.names = c("Drug type", "F 1999-2002",
+                      "F 2003-2006", "F 2007-2010",
+                      "M 1999-2002", "M 2003-2006",
+                      "M 2007-2010"))
+
+``` 
+   
+   
+**Figure 1: Prevalence of nonalcoholic drugs in fatally injured drivers by year and age group**
+
+```{r}
+clean_fars %>%
+  group_by(year, agecat) %>%
+  filter(drug_type != "Alcohol",
+         !is.na(agecat))%>%
+  summarize(n_non_missing = sum(!is.na(positive_for_drug)),
+            positive_test = sum(positive_for_drug, na.rm = TRUE),
+            perc_positive = round(100 * positive_test / n_non_missing, 1)) %>%
+
+   
+ggplot(aes(year, perc_positive, fill = agecat)) +
+  geom_line() +
+  theme_classic()+
+ geom_point(aes(shape = agecat))+
+  scale_shape_manual("Age",values = c(17,16,15, 3))
+
+```
+
+
+**Figure 2: Prevalence of nonalcohol drugs in fatally injured drivers by year and drug type**
+```{r}
+clean_fars %>%
+  group_by(year, drug_type) %>% 
+  summarize(n_non_missing = sum(!is.na(positive_for_drug)),
+            positive_test = sum(positive_for_drug, na.rm = TRUE),
+            perc_positive = round(100 * positive_test / n_non_missing, 1)) %>%
+  filter(drug_type != "Alcohol") %>%
+   
+ggplot(aes(year, perc_positive, fill = drug_type)) +
+  geom_point(aes(shape = drug_type))+
+  scale_shape_manual("Drug Type",values = c(17,16,15, 3, 7))+
+  geom_line() +
+  theme_classic()+
+  labs (x="Year",
+      y="Positive for Drugs %",
+      fill = "")
+     
+```
+ 
+  
+**Figure 3: Prevelance of cannabinoid drugs in fatally injured drivers by year and age group**    
+
+```{r}
+clean_fars %>%
+  group_by(agecat, year, drug_type) %>% 
+  
+  summarize(n_non_missing = sum(!is.na(positive_for_drug)),
+            positive_test = sum(positive_for_drug, na.rm = TRUE),
+            perc_positive = round(100 * positive_test / n_non_missing, 1)) %>%
+ filter(drug_type == "Cannabinoid") %>% 
+  filter(!is.na(agecat)) %>% 
+   
+ggplot(aes(year, perc_positive, fill = agecat))+
+  geom_line()+
+  geom_point(aes(shape = agecat))+
+  scale_shape_manual("Age",values = c(17,16,15, 3))+
+  theme_classic()+
+  labs (x="Year",
+      y="Positive for Cannabinoid %")
+
+## guides(fill = guide_legend(override.aes = list(fill = agecat)))
+
+```
+
+
+```{r}
+perc_cis<-function (df)
+{
+clean_fars %>% 
+  filter(year %in% c(1999,2010)) %>% 
+  filter(!is.na(sex)) %>%
+  group_by(drug_type, year) %>%
+  summarize(n_non_missing = sum(!is.na(positive_for_drug)),
+            positive_test = sum(positive_for_drug, na.rm = TRUE),
+            perc_positive = round(100 * positive_test / n_non_missing, 1)) %>%
+  mutate(p = positive_test / n_non_missing)%>% 
+  mutate(pre_se = p * (1- p)) %>%
+  mutate(pre_se2 = pre_se / n_non_missing) %>% 
+  mutate(se = sqrt(pre_se2)) %>%
+  mutate(CI_LOWER = (p - 1.96 * se))%>% 
+  mutate(CI_UPPER = (p + 1.96 * se))%>%
+  mutate(CI_LOWER = round(CI_LOWER, digits = 3)) %>% 
+  mutate(CI_UPPER = round(CI_UPPER, digits = 3)) %>% 
+  mutate(CI_UPPER = percent(CI_UPPER)) %>%
+  mutate(CI_LOWER = percent(CI_LOWER)) %>% 
+  mutate(p = round(p, digits = 3)) %>% 
+  mutate(p = percent(p)) %>% 
+  select(drug_type, year, p, CI_LOWER, CI_UPPER) %>% 
+    rename(Estimate = p) %>% 
+    unite(col = Confidence_Interval, CI_LOWER, CI_UPPER, sep = ", ") %>% 
+    unite(col = Values, Estimate, Confidence_Interval, sep = "   ") %>% 
+  spread(key = year, value = Values)
+}
+perc_cis()
+
+
+
+```
+
