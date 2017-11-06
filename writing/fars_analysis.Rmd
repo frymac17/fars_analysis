@@ -70,8 +70,8 @@ clean_fars %>%
             perc_positive = round(100 * positive / total_test , 1)) %>%
 
    
-ggplot(aes(year, perc_positive, position = agecat)) +
-  geom_line() +
+ggplot(aes(year, perc_positive, position = agecat))+
+  geom_line()+
   theme_few()+
  geom_point(aes(shape = agecat))+
   scale_shape_manual("Age",values = c(17,16,15, 3))+
@@ -93,7 +93,7 @@ clean_fars %>%
 ggplot(aes(year, perc_positive, position = drug_type)) +
   geom_point(aes(shape = drug_type))+
   scale_shape_manual("Drug Type",values = c(17,16,15, 3, 7))+
-  geom_line() +
+  geom_line()+
   theme_few()+
   labs (x="Year",
       y="Positive for Drugs %")+
