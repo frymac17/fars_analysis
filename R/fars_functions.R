@@ -9,7 +9,7 @@ library(scales)
 library(tidyverse)
 
 
-load("data/clean_fars.RData")
+load("~/r_prog/data/fars_analysis/data/clean_fars.RData")
 
 ###Write a function for proportions and confidence intervals, split by drug class in
 ### 1999 and 2010###############################################################
