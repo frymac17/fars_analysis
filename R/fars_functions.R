@@ -47,7 +47,7 @@ test_trend_ca <- function(drug, data = clean_fars) {
   Z <- round(sqrt(ca_alcohol$statistic), digits = 1)
   p.value <- round(ca_alcohol$p.value, digits = 3)
   final_results <- data.frame(Z, p.value)
-  tibble::remove_rownames(final_results)
+  remove_rownames(final_results)
   return(final_results)
 }
 
@@ -58,9 +58,11 @@ drug_list <- c("Alcohol", "Nonalcohol", "Narcotic", "Depressant",
                "Stimulant", "Cannabinoid", "Other")
 drug_trend_tests_ca <- lapply(drug_list, test_trend_ca)
 drug_trend_tests_ca <- dplyr::bind_rows(drug_trend_tests_ca) %>%
-  dplyr::mutate(drug = drug_list) %>%
-  dplyr::select(drug, Z, p.value)
-drug_trend_tests_ca %>% knitr::kable()
+  mutate(drug = drug_list) %>%
+  select(drug, Z, p.value)
+
+drug_trend_tests_ca %>%
+  kable()
 
 
 
@@ -82,7 +84,7 @@ test_trend_log_reg <- function(drug, data = clean_fars) {
   Z <- round(log_reg_sum$statistic, digits = 1)
   p.value <- round(log_reg_sum$p.value, digits = 3)
   final_results <- data.frame(Z, p.value)
-  tibble::remove_rownames(final_results) 
+  remove_rownames(final_results) 
   return(final_results)
 }
 
@@ -90,7 +92,9 @@ drug_list <- c("Alcohol", "Nonalcohol", "Narcotic", "Depressant",
                "Stimulant", "Cannabinoid", "Other")
 drug_trend_tests_log_reg <- lapply(drug_list, test_trend_log_reg)
 drug_trend_tests_log_reg <- dplyr::bind_rows(drug_trend_tests_log_reg) %>%
-  dplyr::mutate(drug = drug_list) %>%
-  dplyr::select(drug, Z, p.value)
+  mutate(drug = drug_list) %>%
+  select(drug, Z, p.value)
+
+
 drug_trend_tests_log_reg %>% 
 kable()

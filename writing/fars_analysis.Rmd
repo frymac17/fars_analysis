@@ -163,8 +163,9 @@ drug_list <- c("Alcohol", "Nonalcohol", "Narcotic", "Depressant",
                "Stimulant", "Cannabinoid", "Other")
 drug_trend_tests_ca <- lapply(drug_list, test_trend_ca)
 drug_trend_tests_ca <- dplyr::bind_rows(drug_trend_tests_ca) %>%
-  dplyr::mutate(drug = drug_list) %>%
-  dplyr::select(drug, Z, p.value)
+  mutate(drug = drug_list) %>%
+  select(drug, Z, p.value)
+
 drug_trend_tests_ca %>% 
   kable()
 ```
@@ -179,6 +180,7 @@ drug_trend_tests_log_reg <- lapply(drug_list, test_trend_log_reg)
 drug_trend_tests_log_reg <- bind_rows(drug_trend_tests_log_reg) %>%
 mutate(drug = drug_list) %>%
 select(drug, Z, p.value)
+
 drug_trend_tests_log_reg %>% 
 kable()
 ```
